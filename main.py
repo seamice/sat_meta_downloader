@@ -1,101 +1,86 @@
 from meta_db import *
 import requests as req
 import json
+import time
 
-class dg_downloader:
-    def __init__(self):
-        self.tile_w = 2
-        self.tile_h = 2
-        self.url = 'https://api.discover.digitalglobe.com/v1/services/ImageServer/query'
-        pass
+from meta_down import dg_downloader
+
+from meta2pgsql import dgmeta2sql
+from meta2pg import pg_import
+from heat_map import heat_map
+
+
+#if __name__ == '__main__':
+#    dg = dg_downloader()
+#    meta_saver = meta_db('.', 'dg_ret', 'meta')
+#    for x in range(135, 180):
+#        for y in range(90):
+#            ret = dg.getResp(x, y)
+#            print(ret['tileCode'])
+#            if ret['result'] != None:
+#                meta_saver.save(ret['tileCode'], '', json.dumps(ret['param']), json.dumps(ret['result']))
+#            else:
+#                with open('error.txt', 'a+') as fw:
+#                    fw.write(f"{ret['tileCode']}\n")
         
-    def getBoundry(self, x, y):
-        return f'{x*self.tile_w-180},{y*self.tile_h-90},{(x+1)*self.tile_w-180},{(y+1)*self.tile_h-90}'
-        
-    def getHeader(self):
-        return {
-          'accept': 'application/json',
-          'accept-encoding': 'gzip, deflate, br',
-          'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7',
-          'content-length': '538',
-          'content-type': 'application/x-www-form-urlencoded',
-          'origin': 'https://discover.maxar.com',
-          'referer': 'https://discover.maxar.com/',
-          'sec-ch-ua': '"Google Chrome";v="111", "Not(A:Brand";v="8", "Chromium";v="111"',
-          'sec-ch-ua-mobile': '?0',
-          'sec-ch-ua-platform': '"Windows"',
-          'sec-fetch-dest': 'empty',
-          'sec-fetch-mode': 'cors',
-          'sec-fetch-site': 'cross-site',
-          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
-          'x-api-key': 'iSar7CX37j2hb3Apxp7Po6i5ZDlicfkGa8voURju',
-        }
-    
-    def getParam(self, x, y):
-        return {
-          'outFields': '*',
-          'inSR': '4326',
-          'outSR': '4326',
-          'spatialRel': 'esriSpatialRelIntersects',
-          'where': "sun_elevation_avg >= 0 AND image_band_name in('PAN','4-BANDS','8-BANDS','SWIR-BANDS') AND collect_time_start >= '01/01/2000 00:00:00' AND collect_time_start <= '12/31/2022 23:59:59' AND off_nadir_max <= 90",
-          'returnCountOnly': 'false',
-          'f': 'json',
-          'geometryBasedFilters': 'area_cloud_cover_percentage <= 100',
-          'geometryType': 'esriGeometryEnvelope',
-          #'geometry': '115.444336,38.788345,117.762451,40.455307',
-          'geometry': self.getBoundry(x, y),
-          'resultRecordCount': '2000',
-        }
-    
-    def getTileCode(self, x, y):
-        return f'{x}_{y}'
-    
-    def getMeta(self, param):
-        rc = list()
-        try:
-            url = self.url
-            while url != None:
-                print(url)
-                resp = req.post(url, data = param, headers = self.getHeader())
-                if resp.status_code == 200:
-                    ret = json.loads(resp.text)
-                    rc.append(ret)
-                    url = ret['nextPageUrl']
-                else:
-                    print(resp.status_code)
-                    print(resp.text)
-                    break
-        except Exception as e:
-            print('##################################error')
-            rc = None
-            pass
-        return rc
-    def getResp(self, x, y):
-        rc = {}
-        try:
-            rc['param']    = self.getParam(x,y)
-            rc['tileCode'] = self.getTileCode(x,y)
-            rc['result']   = self.getMeta(rc['param'])
-        except Exception as e:
-            pass
-        return rc
+##################################################
+## for dealing with error part
+#if __name__ == '__main__':
+#    dg = dg_downloader()
+#    meta_saver = meta_db('.', 'dg_ret', 'meta')
+#    
+#    files = ('error_part1.txt', 'error_part2.txt', 'error_part3.txt')
+#    
+#    for file in files:
+#        with open(file, 'r') as fr:
+#            line = fr.readline()
+#            while len(line) > 0:
+#                (x, y) = line[:-1].split('_')
+#                ret = dg.getResp(int(x), int(y))
+#                print(ret['tileCode'])
+#                if ret['result'] != None:
+#                    meta_saver.save(ret['tileCode'], '', json.dumps(ret['param']), json.dumps(ret['result']))
+#                else:
+#                    with open('error.txt', 'a+') as fw:
+#                        fw.write(f"{ret['tileCode']}\n")
+#                line = fr.readline()
 
 
+
+
+#######################################
+## for insert into pg
+#def meta2pg(path, db_name, tbl, meta2pg):
+#    meta_saver = meta_db('.', 'dg_ret', 'meta')
+#    
+#    tilecodes = meta_saver.query_all_tilecode()
+#    
+#    
+#    importor = pg_import()
+#    for code in tilecodes:
+#        ret = meta_saver.query_by_tilecode(code[0])
+#        if ret is not None:
+#            for item in ret:
+#                resp_list = json.loads(item[3])
+#                sqls = list()
+#                for per_resp in resp_list:
+#                    sqls.extend(dg.getSqls(per_resp))
+#                
+#                ret = importor.process(sqls)
+#
+#
+#if __name__ == '__main__':
+#
+#    dgmeta2pg = dgmeta2sql()
+#    meta2pg('.', 'dg_ret', 'meta', dgmeta2pg)
+
+
+
+#######################################
+## for heat_map
 if __name__ == '__main__':
-    dg = dg_downloader()
-    meta_saver = meta_db('.', 'dg_ret', 'meta')
-    for x in range(360/2):
-        for y in range(180/2):
-            ret = dg.getResp(x, y)
-            if ret['result'] != None:
-                meta_saver.save(ret['tileCode'], '', json.dumps(ret['param']), json.dumps(ret['result']))
-            else:
-                with open('error.txt', 'a+') as fw:
-                    fw.write(f"{ret['tileCode']}\n")
-        
-
-
-
+    heatMapIns = heat_map()
+    heatMapIns.calcTileCoverCount(2018)
 
 
 

@@ -67,6 +67,10 @@ class meta_db:
     def query_by_tilecode(self, tile_code):
         sql = "select tile_code, req_url, req_data, resp_data from {} where tile_code='{}' order by req_url".format(self.__tbl_name, tile_code)
         return self.__query__(sql)
+        
+    def query_all_tilecode(self):
+        sql = f"select tile_code from {self.__tbl_name}"
+        return self.__query__(sql)
 
     #查询信息
     def __query__(self, sql):
